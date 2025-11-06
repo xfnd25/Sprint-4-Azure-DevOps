@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: common_header('Histórico de Movimentações')}"></head>
+<body>
+<nav th:replace="~{fragments/header :: navbar}"></nav>
+
+<div class="container">
+    <h1>Histórico da Moto: <span th:text="${moto.placa}"></span></h1>
+
+    <a th:href="@{/web/motos}" class="add-button" style="background-color: #6c757d;">Voltar para Lista de Motos</a>
+
+    <div th:if="${movimentacoesPage.empty}">
+        <p>Nenhuma movimentação registrada para esta moto.</p>
+    </div>
+
+    <table th:unless="${movimentacoesPage.empty}">
+        <thead>
+        <tr>
+            <th>ID da Movimentação</th>
+            <th>ID do Sensor</th>
+            <th>Data e Hora</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="mov : ${movimentacoesPage.content}">
+            <td th:text="${mov.id}">101</td>
+            <td th:text="${mov.sensorId}">21</td>
+            <td th:text="${#temporals.format(mov.dataHora, 'dd/MM/yyyy HH:mm:ss')}">21/09/2025 18:30:00</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="pagination" th:if="${movimentacoesPage.totalPages > 1}">
+        <a th:if="${movimentacoesPage.hasPrevious()}" th:href="@{/web/motos/{id}/movimentacoes(id=${moto.id}, page=${movimentacoesPage.number - 1}, size=${movimentacoesPage.size})}">Anterior</a>
+        <span th:text="|Página ${movimentacoesPage.number + 1} de ${movimentacoesPage.totalPages}|"></span>
+        <a th:if="${movimentacoesPage.hasNext()}" th:href="@{/web/motos/{id}/movimentacoes(id=${moto.id}, page=${movimentacoesPage.number + 1}, size=${movimentacoesPage.size})}">Próxima</a>
+    </div>
+</div>
+
+</body>
+</html>

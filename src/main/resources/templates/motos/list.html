@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <head th:replace="~{fragments/header :: common_header('Lista de Motos')}"></head>
+</head>
+<body>
+
+<nav th:replace="~{fragments/header :: navbar}"></nav>
+
+<div class="container">
+    <h1>Gerenciamento de Motos</h1>
+
+    <a th:href="@{/web/motos/new}" class="add-button" sec:authorize="hasRole('ADMIN')">Adicionar Nova Moto</a>
+
+    <div th:if="${motosPage.empty}">
+        <p>Nenhuma moto cadastrada.</p>
+    </div>
+
+    <table th:unless="${motosPage.empty}">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Placa</th>
+            <th>Modelo</th>
+            <th>Ano</th>
+            <th>Status</th>
+            <th>RFID Tag</th> <th>Ações</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="moto : ${motosPage.content}">
+            <td th:text="${moto.id}">1</td>
+            <td th:text="${moto.placa}">ABC-1234</td>
+            <td th:text="${moto.modelo}">Honda Biz</td>
+            <td th:text="${moto.ano}">2023</td>
+            <td th:text="${moto.status}">DISPONIVEL</td>
+            <td th:text="${moto.rfidTag}">RFID-123</td> <td class="actions">
+            <a th:href="@{/web/motos/edit/{id}(id=${moto.id})}" sec:authorize="hasRole('ADMIN')">Editar</a>
+            <a th:href="@{/web/motos/delete/{id}(id=${moto.id})}"
+               onclick="return confirm('Tem certeza que deseja excluir esta moto?');"
+               sec:authorize="hasRole('ADMIN')">Deletar</a>
+            <a th:href="@{/web/motos/{id}/movimentacoes(id=${moto.id})}">Histórico</a>
+        </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="pagination" th:if="${motosPage.totalPages > 1}">
+        <a th:if="${motosPage.hasPrevious()}" th:href="@{/web/motos(page=${motosPage.number - 1}, size=${motosPage.size})}">Anterior</a>
+        <span th:text="|Página ${motosPage.number + 1} de ${motosPage.totalPages}|"></span>
+        <a th:if="${motosPage.hasNext()}" th:href="@{/web/motos(page=${motosPage.number + 1}, size=${motosPage.size})}">Próxima</a>
+    </div>
+
+</div>
+
+</body>
+</html>

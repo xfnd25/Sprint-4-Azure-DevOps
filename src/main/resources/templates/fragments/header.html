@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="common_header(title)">
+    <meta charset="UTF-8">
+    <title th:text="${title} + ' - Mottu Location'">Título Padrão</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+<nav class="navbar" th:fragment="navbar">
+    <div>
+        <a class="brand" th:href="@{/web/motos}">Mottu Location</a>
+        <a th:href="@{/web/motos}" style="margin-left: 2rem;">Motos</a>
+        <a th:href="@{/web/sensores}" style="margin-left: 1rem;">Sensores</a>
+        <a th:href="@{/web/movimentacoes/new}" style="margin-left: 1rem;">Registrar Movimentação</a>
+    </div>
+    <div class="user-info">
+        <span>Olá, <strong sec:authentication="name">Usuário</strong>!</span>
+        <form th:action="@{/logout}" method="post" style="display: inline; margin-left: 1rem;">
+            <button type="submit" class="logout-button">Sair</button>
+        </form>
+    </div>
+</nav>
+</body>
+</html>

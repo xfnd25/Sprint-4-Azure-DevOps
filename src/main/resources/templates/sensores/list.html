@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/header :: common_header('Lista de Sensores')}"></head>
+<body>
+<nav th:replace="~{fragments/header :: navbar}"></nav>
+
+<div class="container">
+    <h1>Gerenciamento de Sensores</h1>
+
+    <a th:href="@{/web/sensores/new}" class="add-button" sec:authorize="hasRole('ADMIN')">Adicionar Novo Sensor</a>
+
+    <div th:if="${sensoresPage.empty}">
+        <p>Nenhum sensor cadastrado.</p>
+    </div>
+
+    <table th:unless="${sensoresPage.empty}">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Código</th>
+            <th>Descrição</th>
+            <th>Posição (X, Y)</th>
+            <th sec:authorize="hasRole('ADMIN')">Ações</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="sensor : ${sensoresPage.content}">
+            <td th:text="${sensor.id}">1</td>
+            <td th:text="${sensor.codigo}">SENSOR-01</td>
+            <td th:text="${sensor.descricao}">Entrada Principal</td>
+            <td th:text="|${sensor.posicaoX}, ${sensor.posicaoY}|">10, 20</td>
+            <td class="actions" sec:authorize="hasRole('ADMIN')">
+                <a th:href="@{/web/sensores/edit/{id}(id=${sensor.id})}">Editar</a>
+                <a th:href="@{/web/sensores/delete/{id}(id=${sensor.id})}"
+                   onclick="return confirm('Tem certeza que deseja excluir este sensor?');">Deletar</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="pagination" th:if="${sensoresPage.totalPages > 1}">
+        <a th:if="${sensoresPage.hasPrevious()}" th:href="@{/web/sensores(page=${sensoresPage.number - 1}, size=${sensoresPage.size})}">Anterior</a>
+        <span th:text="|Página ${sensoresPage.number + 1} de ${sensoresPage.totalPages}|"></span>
+        <a th:if="${sensoresPage.hasNext()}" th:href="@{/web/sensores(page=${sensoresPage.number + 1}, size=${sensoresPage.size})}">Próxima</a>
+    </div>
+</div>
+
+</body>
+</html>
