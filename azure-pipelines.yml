@@ -1,0 +1,111 @@
+# Define o gatilho de CI (Integração Contínua)
+# Cumpre o Requisito 7.II: Disparar na branch 'master'
+trigger:
+- master
+
+# Define o agente de build. Usaremos um agente Linux padrão.
+pool:
+  vmImage: 'ubuntu-latest'
+
+# Vincula o grupo de variáveis que criamos.
+# Cumpre o Requisito 7.IV: Usar variáveis protegidas.
+variables:
+- group: Segredos-Producao
+
+# --- Variáveis Padrão ---
+# Define os nomes dos nossos recursos e conexões para fácil reutilização
+- name: AZURE_SUBSCRIPTION
+  value: 'Conexao-Azure-Sprint4'  # Nome da Conexão de Serviço ARM (Passo 4.A.i)
+- name: ACR_CONNECTION
+  value: 'Conexao-ACR-Sprint4'      # Nome da Conexão de Serviço do ACR (Passo 4.A.ii)
+- name: ACR_NAME
+  value: 'acrmotorm555317'        # Nome do seu ACR (Passo 2.C)
+- name: WEBAPP_NAME
+  value: 'app-motolocation-rm555317' # Nome do seu App Service (Passo 2.D)
+- name: IMAGE_NAME
+  value: 'motolocation'               # Nome da imagem que criaremos
+- name: IMAGE_TAG
+  value: '$(Build.BuildId)'          # Tag única para cada build (ex: "20241107.1")
+
+# --- Estágios do Pipeline ---
+stages:
+
+# ESTÁGIO 1: CI (Continuous Integration)
+# Cumpre Requisitos 7.a, 7.V (Testes) e 7.IV (Publicar Artefato)
+- stage: Build
+  displayName: 'CI: Build, Test & Push Image'
+  jobs:
+  - job: BuildAndTest
+    displayName: 'Build, Test and Push to ACR'
+    steps:
+
+    # Passo 1: Rodar os testes unitários (Req 7.V)
+    # O pom.xml usará o H2 para esta etapa [6]
+    - task: Maven@3
+      displayName: '1. Run Maven Tests (CI)'
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'test' # Roda os testes unitários
+        publishJUnitTestResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.17'
+
+    # Passo 2: Construir e Enviar a Imagem Docker (Req 7.IV e 7.VII)
+    # Isso constrói a imagem usando o Dockerfile e a "Publica"
+    # no seu ACR. A imagem é o "artefato" de deploy. [7]
+    - task: Docker@2
+      displayName: '2. Build and Push Image to ACR'
+      inputs:
+        command: 'buildAndPush'
+        containerRegistry: $(ACR_CONNECTION) # Usa a conexão segura
+        repository: $(IMAGE_NAME)
+        dockerfile: 'Dockerfile' # O arquivo que criamos no Passo 3
+        tags: |
+          $(IMAGE_TAG)
+          latest
+
+# ESTÁGIO 2: CD (Continuous Deployment)
+# Cumpre Requisitos 7.b, 7.III (Gatilho pós-artefato) e 7.VI (Deploy)
+- stage: Deploy
+  displayName: 'CD: Deploy to Azure Web App'
+  dependsOn: Build # Req 7.III: Só roda se o 'Build' (artefato) for bem-sucedido
+  condition: succeeded()
+  jobs:
+  - job: DeployApp
+    displayName: 'Deploy to App Service'
+    steps:
+
+    # Passo 1: Rodar as Migrações de Banco de Dados (Flyway)
+    # Usa o Maven para rodar o 'flyway:migrate' contra o banco PostgreSQL no Azure.
+    # As variáveis de $(...) são injetadas do grupo 'Segredos-Producao'.[8, 3]
+    - task: Maven@3
+      displayName: '1. Run Database Migrations (Flyway)'
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'flyway:migrate'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.17'
+      env:
+        # Injeta os segredos no ambiente deste script [3]
+        SPRING_DATASOURCE_URL: $(SPRING_DATASOURCE_URL)
+        SPRING_DATASOURCE_USERNAME: $(SPRING_DATASOURCE_USERNAME)
+        SPRING_DATASOURCE_PASSWORD: $(SPRING_DATASOURCE_PASSWORD)
+
+    # Passo 2: Implantar (Deploy) no App Service (Req 7.VI e 7.VII)
+    # Diz ao seu Web App para puxar a nova imagem que acabamos de construir.
+    - task: AzureWebAppContainer@1
+      displayName: '2. Deploy Image to App Service'
+      inputs:
+        azureSubscription: $(AZURE_SUBSCRIPTION) # Usa a conexão segura
+        appName: $(WEBAPP_NAME)
+        imageName: '$(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(IMAGE_TAG)'
+
+        # Define as variáveis de ambiente para a APLICAÇÃO EM EXECUÇÃO
+        # Isso garante que sua app Spring consiga conectar ao banco [3]
+        appSettings: |
+          WEBSITES_PORT=8080
+          SPRING_DATASOURCE_URL=$(SPRING_DATASOURCE_URL)
+          SPRING_DATASOURCE_USERNAME=$(SPRING_DATASOURCE_USERNAME)
+          SPRING_DATASOURCE_PASSWORD=$(SPRING_DATASOURCE_PASSWORD)
+          MOTOLOCATION_API_KEY=$(MOTOLOCATION_API_KEY)
