@@ -6,15 +6,15 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
 # Copia apenas o pom.xml primeiro para aproveitar o cache de camadas do Docker
-COPY pom.xml.
+COPY pom.xml .
 
 # Baixa todas as dependências. Esta camada só será reconstruída se o pom.xml mudar.
 RUN mvn dependency:go-offline
 
 # Copia o resto do código-fonte
-COPY src./src
+COPY src ./src
 
-# Compila a aplicação e gera o arquivo.jar, pulando os testes
+# Compila a aplicação e gera o arquivo .jar, pulando os testes
 # (Vamos rodar os testes na pipeline de CI, não aqui)
 RUN mvn clean package -DskipTests
 
@@ -26,7 +26,7 @@ FROM eclipse-temurin:17-jre-jammy
 # Define o diretório de trabalho
 WORKDIR /app
 
-# Copia o arquivo.jar específico que foi gerado no estágio de build.
+# Copia o arquivo .jar específico que foi gerado no estágio de build.
 # O nome do JAR é definido pelo <artifactId> e <version> no pom.xml.
 COPY --from=build /app/target/motolocation-0.0.1-SNAPSHOT.jar app.jar
 
