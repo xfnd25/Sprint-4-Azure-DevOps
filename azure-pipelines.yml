@@ -3,9 +3,7 @@
 trigger:
 - master
 
-# --- CORREÇÃO AQUI ---
-# Define o agente de build.
-# Aponta para o 'name: meu-pc-windows' (nosso agente self-hosted)
+# Define o agente de build para usar seu PC
 pool:
   name: 'meu-pc-windows'
 
@@ -15,7 +13,6 @@ variables:
 - group: Segredos-Producao
 
 # --- Variáveis Padrão ---
-# Define os nomes dos nossos recursos e conexões para fácil reutilização
 - name: AZURE_SUBSCRIPTION
   value: 'Conexao-Azure-Sprint4'
 - name: ACR_CONNECTION
@@ -32,8 +29,7 @@ variables:
 # --- Estágios do Pipeline ---
 stages:
 
-# ESTÁGIO 1: CI (Continuous Integration)
-# Cumpre Requisitos 7.a, 7.V (Testes) e 7.IV (Publicar Artefato)
+# ESTÁGIO 1: CI (Continuous Integration) - JÁ ESTÁ FUNCIONANDO (VERDE ✅)
 - stage: Build
   displayName: 'CI: Build, Test & Push Image'
   jobs:
@@ -46,11 +42,9 @@ stages:
       displayName: '1. Run Maven Tests (CI)'
       inputs:
         mavenPomFile: 'pom.xml'
-        goals: 'test' # Roda os testes unitários
+        goals: 'test'
         publishJUnitTestResults: true
         testResultsFiles: '**/surefire-reports/TEST-*.xml'
-        # --- CORREÇÃO JAVA_HOME ---
-        # Diz ao Maven para usar o JAVA_HOME do seu PC (Agente)
         javaHomeOption: 'Path'
         jdkDirectory: '$(JAVA_HOME)'
 
@@ -59,15 +53,14 @@ stages:
       displayName: '2. Build and Push Image to ACR'
       inputs:
         command: 'buildAndPush'
-        containerRegistry: $(ACR_CONNECTION) # Usa a conexão segura
+        containerRegistry: $(ACR_CONNECTION)
         repository: $(IMAGE_NAME)
-        dockerfile: 'Dockerfile' # O arquivo que criamos no Passo 3
+        dockerfile: 'Dockerfile'
         tags: |
           $(IMAGE_TAG)
           latest
 
 # ESTÁGIO 2: CD (Continuous Deployment)
-# Cumpre Requisitos 7.b, 7.III (Gatilho pós-artefato) e 7.VI (Deploy)
 - stage: Deploy
   displayName: 'CD: Deploy to Azure Web App'
   dependsOn: Build # Req 7.III: Só roda se o 'Build' for bem-sucedido
@@ -77,32 +70,33 @@ stages:
     displayName: 'Deploy to App Service'
     steps:
 
-    # Passo 1: Rodar as Migrações de Banco de Dados (Flyway)
+    # --- CORREÇÃO AQUI (PASSO 1 DO DEPLOY) ---
+    # Removemos o bloco 'env:' (inútil para este plugin)
+    # E adicionamos o bloco 'options:', que passa as variáveis
+    # diretamente para o comando 'mvn' usando -D.
+    # O plugin do Flyway lê essas propriedades.
     - task: Maven@3
       displayName: '1. Run Database Migrations (Flyway)'
       inputs:
         mavenPomFile: 'pom.xml'
         goals: 'flyway:migrate'
-        # --- CORREÇÃO JAVA_HOME ---
-        # Diz ao Maven para usar o JAVA_HOME do seu PC (Agente)
         javaHomeOption: 'Path'
         jdkDirectory: '$(JAVA_HOME)'
-      env:
-        # Injeta os segredos no ambiente deste script
-        SPRING_DATASOURCE_URL: $(SPRING_DATASOURCE_URL)
-        SPRING_DATASOURCE_USERNAME: $(SPRING_DATASOURCE_USERNAME)
-        SPRING_DATASOURCE_PASSWORD: $(SPRING_DATASOURCE_PASSWORD)
+        options: >-
+          -Dflyway.url=$(SPRING_DATASOURCE_URL)
+          -Dflyway.user=$(SPRING_DATASOURCE_USERNAME)
+          -Dflyway.password=$(SPRING_DATASOURCE_PASSWORD)
 
     # Passo 2: Implantar (Deploy) no App Service (Req 7.VI e 7.VII)
     - task: AzureWebAppContainer@1
       displayName: '2. Deploy Image to App Service'
       inputs:
-        azureSubscription: $(AZURE_SUBSCRIPTION) # Usa a conexão segura
+        azureSubscription: $(AZURE_SUBSCRIPTION)
         appName: $(WEBAPP_NAME)
         imageName: '$(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(IMAGE_TAG)'
             
-        # Define as variáveis de ambiente para a APLICAÇÃO EM EXECUÇÃO
-        # Isso garante que sua app Spring consiga conectar ao banco
+        # Define as variáveis de ambiente para a APLICAÇÃO (Spring Boot)
+        # ESTA PARTE ESTAVA CORRETA, pois o Spring Boot LÊ variáveis de ambiente.
         appSettings: |
           WEBSITES_PORT=8080
           SPRING_DATASOURCE_URL=$(SPRING_DATASOURCE_URL)
