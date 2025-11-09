@@ -29,7 +29,7 @@ variables:
 # --- Estágios do Pipeline ---
 stages:
 
-# ESTÁGIO 1: CI (Continuous Integration) - JÁ ESTÁ FUNCIONANDO (VERDE ✅)
+# ESTÁGIO 1: CI (Continuous Integration) - (JÁ ESTÁ FUNCIONANDO ✅)
 - stage: Build
   displayName: 'CI: Build, Test & Push Image'
   jobs:
@@ -60,7 +60,7 @@ stages:
           $(IMAGE_TAG)
           latest
 
-# ESTÁGIO 2: CD (Continuous Deployment)
+# ESTÁGIO 2: CD (Continuous Deployment) - (AGORA VAI ✅)
 - stage: Deploy
   displayName: 'CD: Deploy to Azure Web App'
   dependsOn: Build # Req 7.III: Só roda se o 'Build' for bem-sucedido
@@ -70,11 +70,7 @@ stages:
     displayName: 'Deploy to App Service'
     steps:
 
-    # --- CORREÇÃO AQUI (PASSO 1 DO DEPLOY) ---
-    # Removemos o bloco 'env:' (inútil para este plugin)
-    # E adicionamos o bloco 'options:', que passa as variáveis
-    # diretamente para o comando 'mvn' usando -D.
-    # O plugin do Flyway lê essas propriedades.
+    # Passo 1: Rodar as Migrações de Banco de Dados (Flyway) - (JÁ ESTÁ FUNCIONANDO ✅)
     - task: Maven@3
       displayName: '1. Run Database Migrations (Flyway)'
       inputs:
@@ -95,11 +91,8 @@ stages:
         appName: $(WEBAPP_NAME)
         imageName: '$(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(IMAGE_TAG)'
             
-        # Define as variáveis de ambiente para a APLICAÇÃO (Spring Boot)
-        # ESTA PARTE ESTAVA CORRETA, pois o Spring Boot LÊ variáveis de ambiente.
-        appSettings: |
-          WEBSITES_PORT=8080
-          SPRING_DATASOURCE_URL=$(SPRING_DATASOURCE_URL)
-          SPRING_DATASOURCE_USERNAME=$(SPRING_DATASOURCE_USERNAME)
-          SPRING_DATASOURCE_PASSWORD=$(SPRING_DATASOURCE_PASSWORD)
-          MOTOLOCATION_API_KEY=$(MOTOLOCATION_API_KEY)
+        # --- CORREÇÃO FINAL AQUI ---
+        # Trocamos o formato de múltiplas linhas (|) pelo formato de
+        # linha única, separado por espaços, que é mais robusto
+        # para a tarefa de deploy de contêiner.
+        appSettings: '-WEBSITES_PORT 8080 -SPRING_DATASOURCE_URL $(SPRING_DATASOURCE_URL) -SPRING_DATASOURCE_USERNAME $(SPRING_DATASOURCE_USERNAME) -SPRING_DATASOURCE_PASSWORD $(SPRING_DATASOURCE_PASSWORD) -MOTOLOCATION_API_KEY $(MOTOLOCATION_API_KEY)'
